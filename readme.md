@@ -20,7 +20,7 @@ Which means, for every act of reproduction there is a small probability the valu
 of a child is different from the parent.
 
 #### Brain of Entity
-![Neural Network](neural_net.png)
+![Neural Network](images/neural_net.png)
 
 Every entity has a neural network as a brain. 
 The neural network dictates which direction the entity should move and how much it should move.
@@ -28,7 +28,7 @@ The neural network dictates which direction the entity should move and how much 
 The input to neural network is other entity (of the other type) in the vicinity.
 
 ### 1. Prey:
-![Prey Image](prey.png)
+![Prey Image](images/prey.png)
 
 * Prey acts as the lowest being of the food chain.
 * Every round the predator can gaze, and produce energy for itself.
@@ -38,7 +38,7 @@ The input to neural network is other entity (of the other type) in the vicinity.
 
 
 ### 2. Predator
-![Predator Image](predator.png)
+![Predator Image](images/predator.png)
 * Predator eats a prey to generate energy
 * Every round there is a probability that predator will reproduce.
 * Vision of predator is only 75 degrees divided in 10 sectors. But predator can look till very far

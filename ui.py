@@ -17,6 +17,7 @@ class EvolutionUI:
         # colors
         self.white = (255, 255, 255)
         self.black = (0, 0, 0)
+        self.default_size = 1000
 
         self.information_area = 700
         self.font = None
@@ -42,7 +43,7 @@ class EvolutionUI:
 
     def create_screen(self) -> pygame.Surface:
         pygame.init()
-        screen = pygame.display.set_mode((self.screen_size + self.information_area, self.screen_size))
+        screen = pygame.display.set_mode((self.default_size + self.information_area, self.default_size))
         pygame.display.set_caption('Evolution Simulation by blaze')
         self.screen = screen
         self.refresh_screen()
@@ -68,6 +69,20 @@ class EvolutionUI:
         line_end = (self.screen_size + self.entity_radius, self.screen_size)
         pygame.draw.line(self.screen, self.black, line_start, line_end)
 
+        horizontal_line_start = (0, self.screen_size + self.entity_radius)
+        horizontal_line_end = (self.screen_size + self.entity_radius, self.screen_size)
+        pygame.draw.line(self.screen, self.black, horizontal_line_start, horizontal_line_end)
+
+        top_line_start = (0, 0)
+        top_line_end = (self.screen_size, 0)
+        pygame.draw.line(self.screen, self.black, top_line_start, top_line_end)
+
+        left_line_start = (0, 0)
+        left_line_end = (0, self.screen_size)
+        pygame.draw.line(self.screen, self.black, left_line_start, left_line_end)
+
+
+
     def add_entities(self, preys, predators) -> None:
 
         # pygame stuff
@@ -80,7 +95,7 @@ class EvolutionUI:
         text_epochs = self.font.render('Day: {}.'.format(self.epoch), True, self.black)
         self.epoch += 1
         text_epochs_rect = text_epochs.get_rect()
-        text_epochs_rect_x = self.screen_size + (self.information_area // 2)
+        text_epochs_rect_x = self.default_size + (self.information_area // 2)
         text_epochs_rect_y = 40
         text_epochs_rect.center = (text_epochs_rect_x, text_epochs_rect_y)
 
@@ -92,13 +107,13 @@ class EvolutionUI:
 
         text_preys = self.font.render('Total Preys: {}.'.format(n_preys), True, self.black)
         text_preys_rect = text_preys.get_rect()
-        text_preys_rect_x = self.screen_size + (self.information_area // 2)
+        text_preys_rect_x = self.default_size + (self.information_area // 2)
         text_preys_rect_y = 80
         text_preys_rect.center = (text_preys_rect_x, text_preys_rect_y)
 
         text_predators = self.font.render('Total Predators: {}.'.format(n_predators), True, self.black)
         text_predators_rect = text_predators.get_rect()
-        text_predators_rect_x = self.screen_size + (self.information_area // 2)
+        text_predators_rect_x = self.default_size + (self.information_area // 2)
         text_predators_rect_y = 120
         text_predators_rect.center = (text_predators_rect_x, text_predators_rect_y)
 
@@ -216,7 +231,7 @@ class EvolutionUI:
         # self.ax3.legend()
         self.generate_partition_line()
 
-        chart_pos_x = self.screen_size - 10
+        chart_pos_x = self.default_size + 10
         chart_pos_y = 150
         self.screen.blit(surf, (chart_pos_x, chart_pos_y))
 
