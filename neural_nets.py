@@ -6,13 +6,13 @@ import torch.nn.functional as F
 
 
 
-class PreyNN(nn.Module):
+class PreyNN2(nn.Module):
     def __init__(self):
-        super(PreyNN, self).__init__()
+        super(PreyNN2, self).__init__()
         # Input layer to hidden layer
-        self.hidden = nn.Linear(29, 10)
+        self.hidden = nn.Linear(29, 8)
         # Hidden layer to output layer
-        self.output = nn.Linear(10, 2)
+        self.output = nn.Linear(8, 2)
 
     def forward(self, x):
         # Pass the input through the hidden layer, then apply ReLU activation
@@ -22,27 +22,66 @@ class PreyNN(nn.Module):
         # Apply sigmoid activation function to ensure output is between 0 and 1
         x = torch.sigmoid(x)
         return x
+
+
+class PreyNN(nn.Module):
+    def __init__(self):
+        super(PreyNN, self).__init__()
+        self.fc1 = nn.Linear(29, 64)  # First fully connected layer
+        self.fc2 = nn.Linear(64, 32)  # Second fully connected layer
+        self.angle = nn.Linear(32, 1)  # Output layer for angle
+        self.magnitude = nn.Linear(32, 1)  # Output layer for magnitude
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        angle = torch.sigmoid(self.angle(x)) * 360  # Scale angle to 0-360
+        magnitude = torch.sigmoid(self.magnitude(x))  # Scale magnitude to 0-1
+        return angle, magnitude
+
+
+class PredatorNN2(nn.Module):
+    def __init__(self):
+        super(PredatorNN2, self).__init__()
+        # Input layer to hidden layer
+        self.hidden = nn.Linear(14, 7)
+        # Hidden layer to output layer
+        self.output = nn.Linear(7, 2)
+
+    def forward(self, x):
+        # Pass the input through the hidden layer, then apply ReLU activation
+        x = F.relu(self.hidden(x))
+        # Pass through output layer
+        x = self.output(x)
+        # Apply sigmoid activation function to ensure output is between 0 and 1
+        x = torch.sigmoid(x)
+        return x
+
 
 
 class PredatorNN(nn.Module):
     def __init__(self):
         super(PredatorNN, self).__init__()
-        # Input layer to hidden layer
-        self.hidden = nn.Linear(14, 10)
-        # Hidden layer to output layer
-        self.output = nn.Linear(10, 2)
+        self.fc1 = nn.Linear(14, 32)  # First fully connected layer
+        self.fc2 = nn.Linear(32, 16)  # Second fully connected layer
+        self.angle = nn.Linear(16, 1)  # Output layer for angle
+        self.magnitude = nn.Linear(16, 1)  # Output layer for magnitude
 
     def forward(self, x):
-        # Pass the input through the hidden layer, then apply ReLU activation
-        x = F.relu(self.hidden(x))
-        # Pass through output layer
-        x = self.output(x)
-        # Apply sigmoid activation function to ensure output is between 0 and 1
-        x = torch.sigmoid(x)
-        return x
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        angle = torch.sigmoid(self.angle(x)) * 360  # Scale angle to 0-360
+        magnitude = torch.sigmoid(self.magnitude(x))  # Scale magnitude to 0-1
+        return angle, magnitude
 
 
-def mutate_weights(model, mutation_rate=0.01, mutation_effect=0.2):
+
+def get_normal_dist_random_number(mean, sigma):
+    s = np.random.normal(0, 0.5, 1)
+    return float(s[0])
+
+
+def mutate_weights(model, mutation_rate=0.01, mutation_effect=0.5):
     with torch.no_grad():  # Ensure no gradients are computed during mutation
         # Step 1: Collect all weights into a single list and find total number of weights
         all_weights = []
@@ -54,16 +93,10 @@ def mutate_weights(model, mutation_rate=0.01, mutation_effect=0.2):
         all_weights = torch.cat(all_weights)
         total_weights = all_weights.numel()
 
-        # Step 2: Calculate the number of weights to mutate
-        num_mutations = int(total_weights * mutation_rate)
-
-        # Randomly choose indices of weights to mutate
-        indices_to_mutate = np.random.choice(range(total_weights), num_mutations, replace=False)
-
-        # Step 3: Mutate the selected weights
-        # Example mutation: adding random noise scaled by mutation_effect
-        noise = torch.randn(num_mutations) * mutation_effect
-        all_weights[indices_to_mutate] += noise
+        for i in range(len(all_weights)):
+            if np.random.choice([1, 0], p=[mutation_rate, 1 - mutation_rate]):
+                noise = get_normal_dist_random_number(0, mutation_effect)
+                all_weights[i] += noise
 
         # Step 4: Write the mutated weights back to the original model parameters
         start_index = 0

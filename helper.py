@@ -1,6 +1,9 @@
 import math
 import numpy as np
+from functools import lru_cache
 
+
+@lru_cache(maxsize=1024)
 def calculate_distance(pos1: tuple, pos2: tuple) -> float:
     x_diff = (pos1[0] - pos2[0]) ** 2
     y_diff = (pos1[1] - pos2[1]) ** 2
@@ -10,6 +13,7 @@ def calculate_distance(pos1: tuple, pos2: tuple) -> float:
     return distance
 
 
+@lru_cache(maxsize=1024)
 def calculate_angle(pos1: tuple, pos2: tuple) -> float:
     x1, y1 = pos1
     x2, y2 = pos2
@@ -27,6 +31,7 @@ def calculate_angle(pos1: tuple, pos2: tuple) -> float:
     return angle_degrees
 
 
+@lru_cache(maxsize=1024)
 def calculate_sector(inscribed_angle: float, angle_of_vision: float, line_of_attacks, entity_angle: float) -> int:
     angle_per_sector = angle_of_vision / line_of_attacks
     angle_diff = angle_difference(inscribed_angle, entity_angle)
@@ -99,3 +104,14 @@ def check_collision(ent1, ent2):
 
 def calculate_yes_no_probability(prob_for_true):
     return np.random.choice([True, False], p=[prob_for_true, 1 - prob_for_true])
+
+
+def bytes_to_mb(bt):
+    mb = bt / 1024  # kb
+    mb = mb / 1024  # mb
+    return round(mb, 2)
+
+
+def get_normal_dist_random_number(mean, sigma):
+    s = np.random.normal(0, 0.5, 1)
+    return float(s[0])

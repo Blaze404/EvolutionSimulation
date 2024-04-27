@@ -6,10 +6,11 @@ from entities import Prey, Predator
 import helper
 import json
 import statistics
+from sys import getsizeof
 
 # EVOLUTION PARAMETERS
-GRID_SIZE: int = 500
-TOTAL_ENTITIES: int = 600
+GRID_SIZE: int = 300
+TOTAL_ENTITIES: int = 1000
 
 PREY_LINE_OF_ACTIONS = 25
 PREDATOR_LINE_OF_ACTIONS = 10
@@ -17,11 +18,11 @@ PREDATOR_LINE_OF_ACTIONS = 10
 SUPPORTED_PREYS = 500  # means there is food for only 2000 preys
 
 # Calculation parameters
-TOTAL_PREYS: int = TOTAL_ENTITIES//2
-TOTAL_PREDATORS: int = TOTAL_ENTITIES//2
+TOTAL_PREYS: int = int(TOTAL_ENTITIES//1.5)
+TOTAL_PREDATORS: int = TOTAL_ENTITIES - TOTAL_PREYS
 
 
-TOTAL_TICKS = 100
+TOTAL_TICKS = 5000
 
 
 def main() -> None:
@@ -43,6 +44,7 @@ def main() -> None:
 
     for tick in range(1, TOTAL_TICKS+1):
         print("############### Tick: {} ###############".format(tick))
+
         ## find all entities which are in visible distance of each other
         prey_predator_visibility = {}
         predator_prey_visibility = {}
@@ -88,9 +90,7 @@ def main() -> None:
                                                          PREY_LINE_OF_ACTIONS, entity_current_angle)
 
                         new_obj = {
-                            "angle_coefficient": angle_coefficient,
                             "distance_coefficient": distance_coefficient,
-                            "prey_predator_distance": prey_predator_distance,
                             "sector": sector,
                             "predator_i": predator_i
                         }
@@ -139,9 +139,7 @@ def main() -> None:
                                                          PREDATOR_LINE_OF_ACTIONS, entity_current_angle)
 
                         new_obj = {
-                            "angle_coefficient": angle_coefficient,
                             "distance_coefficient": distance_coefficient,
-                            "predator_prey_distance": predator_prey_distance,
                             "sector": sector,
                             "prey_i": prey_i
                         }
@@ -165,6 +163,8 @@ def main() -> None:
         for prey_i, prey in enumerate(preys):
             et_x, et_y = prey.position
             prey_neighbours = prey_predator_visibility.get(prey_i, [])
+            if len(prey_neighbours) > 0:
+                prey.set_opportunity()
             prey_inputs_n = PREY_LINE_OF_ACTIONS + 4
             # why the above thing?
             # the NN has 1 input for 1 line of action plus 4 inputs for distance from 4 edges
@@ -185,6 +185,8 @@ def main() -> None:
         for predator_i, predator in enumerate(predators):
             et_x, et_y = predator.position
             predator_neighbours = prey_predator_visibility.get(predator_i, [])
+            if len(predator_neighbours) > 0:
+                predator.set_opportunity()
             predator_inputs_n = PREDATOR_LINE_OF_ACTIONS + 4
             # why the above thing?
             # the NN has 1 input for 1 line of action plus 4 inputs for distance from 4 edges
@@ -215,7 +217,8 @@ def main() -> None:
             moves = predator_moves[predator_i]
             angle, distance = moves
             predator.move(angle, distance)
-
+        print("{} MB used by Preys".format(helper.bytes_to_mb(getsizeof(preys))))
+        print("{} MB used by Predators".format(helper.bytes_to_mb(getsizeof(predators))))
         world.add_entities(preys, predators)
         # time.sleep(0.1)
 
@@ -228,7 +231,7 @@ def main() -> None:
                 if collision:
                     delete_preys.append(prey_i)
                     predators_that_got_food.append(predator_i)
-                    # break
+                    break
         delete_preys = sorted(delete_preys, reverse=True)
         print("{} preys got eaten today".format(len(delete_preys)))
         print("{} predators got food today".format(len(predators_that_got_food)))
@@ -236,11 +239,18 @@ def main() -> None:
             # print(len(preys))
             if prey < len(preys):
                 del preys[prey]
+        # predators should eat and also give them feedback
+        feedback_received = []
         for predator in predators_that_got_food:
             predators[predator].eat()
-        # preys should gaze
+            if predator not in feedback_received:
+                predators[predator].feedback()
+                feedback_received.append(predator)
+        # preys should gaze and also feedback as they survived
         for prey in preys:
             prey.gaze(n_preys, SUPPORTED_PREYS)
+            prey.feedback()
+
 
         ## delete preys and predators who have depleted energy
         delete_preys = []
@@ -269,15 +279,17 @@ def main() -> None:
             if prey.check_eligibility_for_reproduction():
                 new_prey = prey.reproduce()
                 new_preys.append(new_prey)
+        print("{} preys born today".format(len(new_preys)))
         preys.extend(new_preys)
 
         for predator in predators:
             if predator.check_eligibility_for_reproduction():
                 new_predator = predator.reproduce()
                 new_predators.append(new_predator)
+        print("{} predators born today".format(len(new_predators)))
         predators.extend(new_predators)
 
-        # time.sleep(0.01)
+        # time.sleep(0.5)
 
 main()
 

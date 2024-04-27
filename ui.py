@@ -7,6 +7,7 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from pygame.locals import *
+from collections import deque
 
 
 class EvolutionUI:
@@ -26,17 +27,19 @@ class EvolutionUI:
         self.ax2 = None
         self.ax3 = None
 
-        self.count_history_preys = []
-        self.count_history_predators = []
-        self.sum_history_entities = []
+        self.display_legend = True
+        self.max_graph_length = 100
+        self.count_history_preys = deque(maxlen=self.max_graph_length)
+        self.count_history_predators = deque(maxlen=self.max_graph_length)
+        self.sum_history_entities = deque(maxlen=self.max_graph_length)
 
-        self.color_red_average_prey = []
-        self.color_green_average_prey = []
-        self.color_blue_average_prey = []
+        self.color_red_average_prey = deque(maxlen=self.max_graph_length)
+        self.color_green_average_prey = deque(maxlen=self.max_graph_length)
+        self.color_blue_average_prey = deque(maxlen=self.max_graph_length)
 
-        self.color_red_average_predator = []
-        self.color_green_average_predator = []
-        self.color_blue_average_predator = []
+        self.color_red_average_predator = deque(maxlen=self.max_graph_length)
+        self.color_green_average_predator = deque(maxlen=self.max_graph_length)
+        self.color_blue_average_predator = deque(maxlen=self.max_graph_length)
 
         self.history_append_probability = min(round((total_ticks ** 0.75) / total_ticks, 3) * 2, 1)
         self.epoch = 0
@@ -128,8 +131,10 @@ class EvolutionUI:
 
 
         # charts
-        self.ax1.plot(range(len(self.count_history_preys)), self.count_history_preys, color='green')  # Example data
-        self.ax1.plot(range(len(self.count_history_predators)), self.count_history_predators, color='red')
+        self.ax1.plot(range(len(self.count_history_preys)), self.count_history_preys,
+                      color='green', label='Preys')  # Example data
+        self.ax1.plot(range(len(self.count_history_predators)), self.count_history_predators,
+                      color='red', label='Predators')
         self.ax1.set_title('Count of prey/predators')
         # self.ax1.set_xlabel('Data point')
         self.ax1.set_ylabel('No of entities')
@@ -204,8 +209,6 @@ class EvolutionUI:
 
             pygame.draw.line(self.screen, self.black, center, end_pos)
 
-
-
         if add_to_chart:
             self.color_red_average_prey.append(round(color_red_sum_prey / nm_prey, 2))
             self.color_green_average_prey.append(round(color_green_sum_prey / nm_prey, 2))
@@ -228,7 +231,11 @@ class EvolutionUI:
                       label='Size')
         self.ax3.plot(range(len(self.color_blue_average_predator)), self.color_blue_average_predator, color='blue',
                       label='Visibility')
-        # self.ax3.legend()
+        if self.display_legend:
+            self.ax1.legend()
+            self.ax2.legend()
+            self.ax3.legend()
+            self.display_legend = False
         self.generate_partition_line()
 
         chart_pos_x = self.default_size + 10
