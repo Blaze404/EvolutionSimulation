@@ -5,7 +5,6 @@ import numpy as np
 import torch.nn.functional as F
 
 
-
 class PreyNN2(nn.Module):
     def __init__(self):
         super(PreyNN2, self).__init__()
@@ -27,49 +26,30 @@ class PreyNN2(nn.Module):
 class PreyNN(nn.Module):
     def __init__(self):
         super(PreyNN, self).__init__()
-        self.fc1 = nn.Linear(29, 64)  # First fully connected layer
-        self.fc2 = nn.Linear(64, 32)  # Second fully connected layer
-        self.angle = nn.Linear(32, 1)  # Output layer for angle
-        self.magnitude = nn.Linear(32, 1)  # Output layer for magnitude
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        angle = torch.sigmoid(self.angle(x)) * 360  # Scale angle to 0-360
-        magnitude = torch.sigmoid(self.magnitude(x))  # Scale magnitude to 0-1
-        return angle, magnitude
-
-
-class PredatorNN2(nn.Module):
-    def __init__(self):
-        super(PredatorNN2, self).__init__()
-        # Input layer to hidden layer
-        self.hidden = nn.Linear(14, 7)
-        # Hidden layer to output layer
-        self.output = nn.Linear(7, 2)
-
-    def forward(self, x):
-        # Pass the input through the hidden layer, then apply ReLU activation
-        x = F.relu(self.hidden(x))
-        # Pass through output layer
-        x = self.output(x)
-        # Apply sigmoid activation function to ensure output is between 0 and 1
-        x = torch.sigmoid(x)
-        return x
-
-
-
-class PredatorNN(nn.Module):
-    def __init__(self):
-        super(PredatorNN, self).__init__()
-        self.fc1 = nn.Linear(14, 32)  # First fully connected layer
-        self.fc2 = nn.Linear(32, 16)  # Second fully connected layer
+        self.fc1 = nn.Linear(29, 16)  # First fully connected layer
+        # self.fc2 = nn.Linear(32, 16)  # Second fully connected layer
         self.angle = nn.Linear(16, 1)  # Output layer for angle
         self.magnitude = nn.Linear(16, 1)  # Output layer for magnitude
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
+        # x = torch.relu(self.fc2(x))
+        angle = torch.sigmoid(self.angle(x)) * 360  # Scale angle to 0-360
+        magnitude = torch.sigmoid(self.magnitude(x))  # Scale magnitude to 0-1
+        return angle, magnitude
+
+
+class PredatorNN(nn.Module):
+    def __init__(self):
+        super(PredatorNN, self).__init__()
+        self.fc1 = nn.Linear(14, 8)  # First fully connected layer
+        # self.fc2 = nn.Linear(32, 16)  # Second fully connected layer
+        self.angle = nn.Linear(8, 1)  # Output layer for angle
+        self.magnitude = nn.Linear(8, 1)  # Output layer for magnitude
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        # x = torch.relu(self.fc2(x))
         angle = torch.sigmoid(self.angle(x)) * 360  # Scale angle to 0-360
         magnitude = torch.sigmoid(self.magnitude(x))  # Scale magnitude to 0-1
         return angle, magnitude
@@ -91,7 +71,6 @@ def mutate_weights(model, mutation_rate=0.01, mutation_effect=0.5):
 
         # Concatenate all weights into a single tensor
         all_weights = torch.cat(all_weights)
-        total_weights = all_weights.numel()
 
         for i in range(len(all_weights)):
             if np.random.choice([1, 0], p=[mutation_rate, 1 - mutation_rate]):

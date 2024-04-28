@@ -1,14 +1,12 @@
 import pygame
 import sys
-import time
 import numpy as np
-import random
 import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from pygame.locals import *
 from collections import deque
-
+import time
 
 class EvolutionUI:
     def __init__(self, screen_size: int, total_ticks: int):
@@ -43,6 +41,7 @@ class EvolutionUI:
 
         self.history_append_probability = min(round((total_ticks ** 0.75) / total_ticks, 3) * 2, 1)
         self.epoch = 0
+        self.start_time = time.time()
 
     def create_screen(self) -> pygame.Surface:
         pygame.init()
@@ -51,7 +50,7 @@ class EvolutionUI:
         self.screen = screen
         self.refresh_screen()
 
-        font = pygame.font.Font('freesansbold.ttf', 32)
+        font = pygame.font.Font('freesansbold.ttf', 20)
         self.font = font
 
         # charts
@@ -99,7 +98,7 @@ class EvolutionUI:
         self.epoch += 1
         text_epochs_rect = text_epochs.get_rect()
         text_epochs_rect_x = self.default_size + (self.information_area // 2)
-        text_epochs_rect_y = 40
+        text_epochs_rect_y = 25
         text_epochs_rect.center = (text_epochs_rect_x, text_epochs_rect_y)
 
         n_preys = len(preys)
@@ -111,14 +110,22 @@ class EvolutionUI:
         text_preys = self.font.render('Total Preys: {}.'.format(n_preys), True, self.black)
         text_preys_rect = text_preys.get_rect()
         text_preys_rect_x = self.default_size + (self.information_area // 2)
-        text_preys_rect_y = 80
+        text_preys_rect_y = 50
         text_preys_rect.center = (text_preys_rect_x, text_preys_rect_y)
 
         text_predators = self.font.render('Total Predators: {}.'.format(n_predators), True, self.black)
         text_predators_rect = text_predators.get_rect()
         text_predators_rect_x = self.default_size + (self.information_area // 2)
-        text_predators_rect_y = 120
+        text_predators_rect_y = 75
         text_predators_rect.center = (text_predators_rect_x, text_predators_rect_y)
+
+        current_time = time.time()
+        epoch_rate_per_epoch = round((current_time - self.start_time)/self.epoch, 2)
+        epoch_rate = self.font.render('Time per epoch: {} seconds.'.format(epoch_rate_per_epoch), True, self.black)
+        epoch_rate_rect = epoch_rate.get_rect()
+        epoch_rate_rect_x = self.default_size + (self.information_area // 2)
+        epoch_rate_rect_y = 100
+        epoch_rate_rect.center = (epoch_rate_rect_x, epoch_rate_rect_y)
 
         add_to_chart = False
         if np.random.choice([True, False], p=[self.history_append_probability, 1-self.history_append_probability]):
@@ -131,6 +138,7 @@ class EvolutionUI:
 
 
         # charts
+        self.ax1.clear()
         self.ax1.plot(range(len(self.count_history_preys)), self.count_history_preys,
                       color='green', label='Preys')  # Example data
         self.ax1.plot(range(len(self.count_history_predators)), self.count_history_predators,
@@ -145,15 +153,12 @@ class EvolutionUI:
         canvas = FigureCanvas(self.fig)
         canvas.draw()
 
-        # Convert to a Pygame image
-        renderer = canvas.get_renderer()
-        raw_data = renderer.tostring_rgb()
-        size = canvas.get_width_height()
-        surf = pygame.image.fromstring(raw_data, size, "RGB")
+
 
         self.screen.blit(text_epochs, text_epochs_rect)
         self.screen.blit(text_preys, text_preys_rect)
         self.screen.blit(text_predators, text_predators_rect)
+        self.screen.blit(epoch_rate, epoch_rate_rect)
 
         color_red_sum_prey = 0
         color_green_sum_prey = 0
@@ -217,7 +222,7 @@ class EvolutionUI:
             self.color_red_average_predator.append(round(color_red_sum_predator / nm_predator, 2))
             self.color_green_average_predator.append(round(color_green_sum_predator / nm_predator, 2))
             self.color_blue_average_predator.append(round(color_blue_sum_predator / nm_predator, 2))
-
+        self.ax2.clear()
         self.ax2.plot(range(len(self.color_red_average_prey)), self.color_red_average_prey, color='red',
                       label='Mobility')
         self.ax2.plot(range(len(self.color_green_average_prey)), self.color_green_average_prey, color='green',
@@ -225,21 +230,29 @@ class EvolutionUI:
         self.ax2.plot(range(len(self.color_blue_average_prey)), self.color_blue_average_prey, color='blue',
                       label='Visibility')
         # self.ax2.legend()
+        self.ax3.clear()
         self.ax3.plot(range(len(self.color_red_average_predator)), self.color_red_average_predator, color='red',
                       label='Mobility')
         self.ax3.plot(range(len(self.color_green_average_predator)), self.color_green_average_predator, color='green',
                       label='Size')
         self.ax3.plot(range(len(self.color_blue_average_predator)), self.color_blue_average_predator, color='blue',
                       label='Visibility')
-        if self.display_legend:
-            self.ax1.legend()
-            self.ax2.legend()
-            self.ax3.legend()
-            self.display_legend = False
+        # if self.display_legend:
+        self.ax1.legend()
+        self.ax2.legend()
+        self.ax3.legend()
+            # self.display_legend = False
         self.generate_partition_line()
 
         chart_pos_x = self.default_size + 10
-        chart_pos_y = 150
+        chart_pos_y = 125
+
+        # Convert to a Pygame image
+        renderer = canvas.get_renderer()
+        raw_data = renderer.tostring_rgb()
+        size = canvas.get_width_height()
+        surf = pygame.image.fromstring(raw_data, size, "RGB")
+
         self.screen.blit(surf, (chart_pos_x, chart_pos_y))
 
         pygame.display.flip()

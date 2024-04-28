@@ -50,16 +50,18 @@ class Entity:
         self.current_angle = float(random.randint(0, 359))
         self.generate_color()
 
-        self.energy_usage_per_movement = 55
+        self.energy_usage_per_movement = 60
         self.mutation_rate = 0.01  # percent
         self.maximum_age = 7
-        self.reproduction_energy = 90
+        self.reproduction_energy = 95
         self.reproduction_rejection_probability = 0.75
         self.reproduction_spontaneous_probability = 0.05
         self.over_age_death_probability = 0.95
         self.minimum_energy_required_for_reproduction = self.reproduction_energy // 2
 
+
         self.was_in_opportunity = False
+        self.was_able_to_eat = False
 
     def calculate_energy_usage(self, movement, distance) -> float:
         usage = self.energy_usage_per_movement
@@ -204,6 +206,7 @@ class Entity:
 
     def move(self, angle: float, distance: float):
         self.age += 1
+        self.was_able_to_eat = False
         angle = 360 * angle
         angle_radians = math.radians(angle)
         center = self.position
@@ -297,22 +300,23 @@ class Prey(Entity):
             total_food = self.gazing_food * supported_preys
             food_per_prey = round(total_food / total_preys, 2)
             self.total_energy += food_per_prey
+            self.was_able_to_eat = True
             # print("Food per day: {} instead of {}".format(food_per_prey, self.gazing_food))
             return
 
     def feedback(self):
         opp = self.was_in_opportunity
         self.was_in_opportunity = False
-        if opp:
-            reward = 1 if opp else 0.5
-            loss_angle = -torch.log(self.angle / 360) * reward  # Normalize angle for log probability
-            loss_magnitude = -torch.log(self.magnitude) * reward
 
-            total_loss = loss_angle + loss_magnitude
-            # print(total_loss)
-            self.optimizer.zero_grad()
-            total_loss.backward()
-            self.optimizer.step()
+        reward = 1 if opp else 0.5
+        loss_angle = -torch.log(self.angle / 360) * reward  # Normalize angle for log probability
+        loss_magnitude = -torch.log(self.magnitude) * reward
+
+        total_loss = loss_angle + loss_magnitude
+        # print(total_loss)
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        self.optimizer.step()
 
 
 class Predator(Entity):
@@ -337,7 +341,6 @@ class Predator(Entity):
             return
         self.total_energy += self.initial_total_energy * 0.8
 
-
     def predator_pressure(self, total_predators: int, total_preys: int):
         if total_preys >= total_predators:
             # no pressure
@@ -350,9 +353,6 @@ class Predator(Entity):
             if helper.calculate_yes_no_probability(0.001):
                 print("{}: Fight probability - Predator".format(fight_chance))
             self.total_energy -= 0.99 * self.initial_total_energy
-
-
-
 
     def reproduce(self):
         new_ent = Predator(self.screen_size)
@@ -385,15 +385,17 @@ class Predator(Entity):
         self.total_energy -= self.reproduction_energy
         return new_ent
 
-
-    def feedback(self):
+    def feedback(self, negative=False):
         opp = self.was_in_opportunity
         self.was_in_opportunity = False
 
         if helper.calculate_yes_no_probability(0.5):
             return
 
-        reward = 1 if opp else 0.5
+        if not negative:
+            reward = 1 if opp else 0.5
+        else:
+            reward = 0
         loss_angle = -torch.log(self.angle / 360) * reward  # Normalize angle for log probability
         loss_magnitude = -torch.log(self.magnitude) * reward
 

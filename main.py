@@ -1,11 +1,7 @@
 # imports
-import torch
 import ui
-import time
 from entities import Prey, Predator
 import helper
-import json
-import statistics
 from sys import getsizeof
 
 # EVOLUTION PARAMETERS
@@ -19,7 +15,7 @@ SUPPORTED_PREYS = 500  # means there is food for only 2000 preys
 
 # Calculation parameters
 TOTAL_PREYS: int = int(TOTAL_ENTITIES//1.5)
-TOTAL_PREDATORS: int = TOTAL_ENTITIES - TOTAL_PREYS
+TOTAL_PREDATORS: int = (TOTAL_ENTITIES - TOTAL_PREYS)
 
 
 TOTAL_TICKS = 5000
@@ -49,6 +45,7 @@ def main() -> None:
         prey_predator_visibility = {}
         predator_prey_visibility = {}
         n_preys = len(preys)
+        n_predators = len(predators)
         for prey_i, prey in enumerate(preys):
 
             entity_visibility = prey.visibility
@@ -63,6 +60,7 @@ def main() -> None:
 
                 prey_predator_distance = helper.calculate_distance(prey_position, predator_position)
 
+                # check prey predator collision
                 if prey_predator_distance <= entity_visibility:
                     # the enemy is in visibility range
                     # calculate angle coefficient
@@ -79,8 +77,6 @@ def main() -> None:
 
                     if helper.check_angle_in_visibility(entity_angle_of_vision, apparent_inscribed_angle,
                                                         entity_current_angle, inscribed_angle):
-                        angle_coefficient = apparent_inscribed_angle / 360
-                        angle_coefficient = round(angle_coefficient, 3)
 
                         distance_coefficient = prey_predator_distance / entity_visibility
                         distance_coefficient = 1 - distance_coefficient
@@ -100,47 +96,35 @@ def main() -> None:
                             prey_predator_visibility[prey_i].append(new_obj)
                         # print(apparent_inscribed_angle, prey_predator_distance, sector)
 
-        for predator_i, predator in enumerate(predators):
-            entity_visibility = predator.visibility
-            entity_angle_of_vision = predator.angle_of_vision
-            entity_current_angle = predator.current_angle
-
-            # print("Predator visibility: dist: {}. Angle: {}".format(entity_visibility, entity_angle_of_vision))
-
-            for prey_i, prey in enumerate(preys):
-                predator_position = predator.position
-                prey_position = prey.position
-                # print("Predator position: {}".format(predator_position))
-                # print("prey position: {}".format(prey_position))
-                predator_prey_distance = helper.calculate_distance(predator_position, prey_position)
-
-                if predator_prey_distance <= entity_visibility:
+                predator_visibility = predator.visibility
+                predator_angle_of_vision = predator.angle_of_vision
+                predator_current_angle = predator.current_angle
+                # check predator prey collision
+                if prey_predator_distance <= predator_visibility:
                     # the enemy is in visibility range
                     # calculate angle coefficient
                     # calculate distance coefficient
                     # calculate which sector does the enemy belong
 
-                    inscribed_angle = helper.calculate_angle(predator_position, prey_position)
-                    apparent_inscribed_angle = inscribed_angle - entity_current_angle
+                    inscribed_angle_predator = helper.calculate_angle(predator_position, prey_position)
+                    apparent_inscribed_angle_predator = inscribed_angle_predator - predator_current_angle
 
-                    if apparent_inscribed_angle < 0:
-                        apparent_inscribed_angle = 360 + apparent_inscribed_angle
+                    if apparent_inscribed_angle_predator < 0:
+                        apparent_inscribed_angle_predator = 360 + apparent_inscribed_angle_predator
 
-                    if helper.check_angle_in_visibility(entity_angle_of_vision, apparent_inscribed_angle,
-                                                        entity_current_angle, inscribed_angle):
-                        angle_coefficient = apparent_inscribed_angle / 360
-                        angle_coefficient = round(angle_coefficient, 3)
+                    if helper.check_angle_in_visibility(predator_angle_of_vision, apparent_inscribed_angle_predator,
+                                                        predator_current_angle, inscribed_angle_predator):
 
-                        distance_coefficient = predator_prey_distance / entity_visibility
-                        distance_coefficient = 1 - distance_coefficient
-                        distance_coefficient = round(distance_coefficient, 3)
+                        distance_coefficient_predator = prey_predator_distance / predator_visibility
+                        distance_coefficient_predator = 1 - distance_coefficient_predator
+                        distance_coefficient_predator = round(distance_coefficient_predator, 3)
 
-                        sector = helper.calculate_sector(inscribed_angle, entity_angle_of_vision,
-                                                         PREDATOR_LINE_OF_ACTIONS, entity_current_angle)
+                        sector_predator = helper.calculate_sector(inscribed_angle_predator, predator_angle_of_vision,
+                                                         PREDATOR_LINE_OF_ACTIONS, predator_current_angle)
 
                         new_obj = {
-                            "distance_coefficient": distance_coefficient,
-                            "sector": sector,
+                            "distance_coefficient": distance_coefficient_predator,
+                            "sector": sector_predator,
                             "prey_i": prey_i
                         }
                         if predator_i not in predator_prey_visibility:
@@ -251,6 +235,11 @@ def main() -> None:
             prey.gaze(n_preys, SUPPORTED_PREYS)
             prey.feedback()
 
+        # give feedback to predators who had apportunity to eat but didnt
+        for predator_i in range(len(predators)):
+            if predator_i not in predators_that_got_food:
+                if predators[predator_i].was_in_opportunity:
+                    predators[predator_i].feedback(negative=True)
 
         ## delete preys and predators who have depleted energy
         delete_preys = []
@@ -270,6 +259,7 @@ def main() -> None:
         print("{} predators died today".format(len(delete_predators)))
         for predator in delete_predators:
             del predators[predator]
+
 
         ## check for entities who can reproduce
         new_preys = []
