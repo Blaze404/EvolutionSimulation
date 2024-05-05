@@ -10,12 +10,17 @@ import time
 
 class EvolutionUI:
     def __init__(self, screen_size: int, total_ticks: int):
+
+        self.is_running = True
+
         self.screen_size = screen_size
         self.screen = None
         self.entity_radius = 4
         # colors
         self.white = (255, 255, 255)
         self.black = (0, 0, 0)
+        self.red = (255, 0, 0)
+        self.blue = (0, 0, 255)
         self.default_size = 1000
 
         self.information_area = 700
@@ -26,7 +31,7 @@ class EvolutionUI:
         self.ax3 = None
 
         self.display_legend = True
-        self.max_graph_length = 100
+        self.max_graph_length = 125
         self.count_history_preys = deque(maxlen=self.max_graph_length)
         self.count_history_predators = deque(maxlen=self.max_graph_length)
         self.sum_history_entities = deque(maxlen=self.max_graph_length)
@@ -42,6 +47,9 @@ class EvolutionUI:
         self.history_append_probability = min(round((total_ticks ** 0.75) / total_ticks, 3) * 2, 1)
         self.epoch = 0
         self.start_time = time.time()
+
+        self.text_start = 20
+        self.text_row_height = 23
 
     def create_screen(self) -> pygame.Surface:
         pygame.init()
@@ -90,7 +98,8 @@ class EvolutionUI:
         # pygame stuff
         for event in pygame.event.get():
             if event.type == QUIT:
-                sys.exit(1)
+                # Clean up Pygame
+                self.is_running = False
 
         # informatives
 
@@ -98,7 +107,7 @@ class EvolutionUI:
         self.epoch += 1
         text_epochs_rect = text_epochs.get_rect()
         text_epochs_rect_x = self.default_size + (self.information_area // 2)
-        text_epochs_rect_y = 25
+        text_epochs_rect_y = self.text_start
         text_epochs_rect.center = (text_epochs_rect_x, text_epochs_rect_y)
 
         n_preys = len(preys)
@@ -107,32 +116,14 @@ class EvolutionUI:
         nm_prey = max(1, n_preys)
         nm_predator = max(1, n_predators)
 
-        text_preys = self.font.render('Total Preys: {}.'.format(n_preys), True, self.black)
-        text_preys_rect = text_preys.get_rect()
-        text_preys_rect_x = self.default_size + (self.information_area // 2)
-        text_preys_rect_y = 50
-        text_preys_rect.center = (text_preys_rect_x, text_preys_rect_y)
 
-        text_predators = self.font.render('Total Predators: {}.'.format(n_predators), True, self.black)
-        text_predators_rect = text_predators.get_rect()
-        text_predators_rect_x = self.default_size + (self.information_area // 2)
-        text_predators_rect_y = 75
-        text_predators_rect.center = (text_predators_rect_x, text_predators_rect_y)
 
-        current_time = time.time()
-        epoch_rate_per_epoch = round((current_time - self.start_time)/self.epoch, 2)
-        epoch_rate = self.font.render('Time per epoch: {} seconds.'.format(epoch_rate_per_epoch), True, self.black)
-        epoch_rate_rect = epoch_rate.get_rect()
-        epoch_rate_rect_x = self.default_size + (self.information_area // 2)
-        epoch_rate_rect_y = 100
-        epoch_rate_rect.center = (epoch_rate_rect_x, epoch_rate_rect_y)
-
-        add_to_chart = False
-        if np.random.choice([True, False], p=[self.history_append_probability, 1-self.history_append_probability]):
-            add_to_chart = True
-            self.count_history_preys.append(n_preys)
-            self.count_history_predators.append(n_predators)
-            self.sum_history_entities.append(n_preys + n_predators)
+        # add_to_chart = False
+        # if np.random.choice([True, False], p=[self.history_append_probability, 1-self.history_append_probability]):
+        add_to_chart = True
+        self.count_history_preys.append(n_preys)
+        self.count_history_predators.append(n_predators)
+        self.sum_history_entities.append(n_preys + n_predators)
 
         self.screen.fill(self.white)
 
@@ -153,21 +144,24 @@ class EvolutionUI:
         canvas = FigureCanvas(self.fig)
         canvas.draw()
 
-
-
         self.screen.blit(text_epochs, text_epochs_rect)
-        self.screen.blit(text_preys, text_preys_rect)
-        self.screen.blit(text_predators, text_predators_rect)
-        self.screen.blit(epoch_rate, epoch_rate_rect)
 
         color_red_sum_prey = 0
         color_green_sum_prey = 0
         color_blue_sum_prey = 0
+        total_age_prey = 0
+        max_age = 0
+        prey_kids = 0
+        mature_preys_count = 0
         for prey in preys:
             center = prey.position
             color = prey.color
             er = prey.entity_radius
-
+            total_age_prey += prey.age
+            max_age = max(prey.age, max_age)
+            if prey.age >= prey.reproduce_every:
+                prey_kids += prey.kids
+                mature_preys_count += 1
             # charts
             color_red_sum_prey += color[0]
             color_green_sum_prey += color[1]
@@ -185,15 +179,23 @@ class EvolutionUI:
 
             end_pos = (end_pos_x, end_pos_y)
 
-            pygame.draw.line(self.screen, self.black, center, end_pos)
+            pygame.draw.line(self.screen, self.blue, center, end_pos)
 
         color_red_sum_predator = 0
         color_green_sum_predator = 0
         color_blue_sum_predator = 0
+        predator_kids = 0
+        total_age_predator = 0
+        mature_predators_count = 0
         for predator in predators:
             center = predator.position
             color = predator.color
             er = predator.entity_radius
+            total_age_predator += predator.age
+            max_age = max(predator.age, max_age)
+            if predator.age >= predator.reproduce_every:
+                predator_kids += predator.kids
+                mature_predators_count += 1
 
             color_red_sum_predator += color[0]
             color_green_sum_predator += color[1]
@@ -212,7 +214,45 @@ class EvolutionUI:
 
             end_pos = (end_pos_x, end_pos_y)
 
-            pygame.draw.line(self.screen, self.black, center, end_pos)
+            pygame.draw.line(self.screen, self.red, center, end_pos)
+
+        avg_prey_kids = prey_kids / max(1, mature_preys_count)
+        avg_prey_kids = round(avg_prey_kids, 2)
+        text_preys = self.font.render('Prey Population: {}.       AK: {}'.format(n_preys, avg_prey_kids), True, self.black)
+        text_preys_rect = text_preys.get_rect()
+        text_preys_rect_x = self.default_size + (self.information_area // 2)
+        text_preys_rect_y = self.text_start + (self.text_row_height)
+        text_preys_rect.center = (text_preys_rect_x, text_preys_rect_y)
+
+        avg_predator_kids = predator_kids / max(1, mature_predators_count)
+        avg_predator_kids = round(avg_predator_kids, 2)
+        text_predators = self.font.render('Predator Population: {}.    AK: {}'.format(n_predators, avg_predator_kids), True, self.black)
+        text_predators_rect = text_predators.get_rect()
+        text_predators_rect_x = self.default_size + (self.information_area // 2)
+        text_predators_rect_y = self.text_start + (self.text_row_height * 2)
+        text_predators_rect.center = (text_predators_rect_x, text_predators_rect_y)
+
+        current_time = time.time()
+        epoch_rate_per_epoch = round((current_time - self.start_time) / self.epoch, 2)
+        epoch_rate = self.font.render('Time per epoch: {} seconds.'.format(epoch_rate_per_epoch), True, self.black)
+        epoch_rate_rect = epoch_rate.get_rect()
+        epoch_rate_rect_x = self.default_size + (self.information_area // 2)
+        epoch_rate_rect_y = self.text_start + (self.text_row_height * 3)
+        epoch_rate_rect.center = (epoch_rate_rect_x, epoch_rate_rect_y)
+
+        average_age_prey = round(total_age_prey / max(n_preys, 1), 2)
+        average_age_predator = round(total_age_predator / max(n_predators, 1), 2)
+        text_age = self.font.render('Average Age- Prey: {}. Predator: {}.'.format(average_age_prey, average_age_predator),
+                                    True, self.black)
+        text_age_rect = text_age.get_rect()
+        text_age_rect_x = self.default_size + (self.information_area // 2)
+        text_age_rect_y = self.text_start + (self.text_row_height*4)
+        text_age_rect.center = (text_age_rect_x, text_age_rect_y)
+
+        self.screen.blit(text_preys, text_preys_rect)
+        self.screen.blit(text_predators, text_predators_rect)
+        self.screen.blit(epoch_rate, epoch_rate_rect)
+        self.screen.blit(text_age, text_age_rect)
 
         if add_to_chart:
             self.color_red_average_prey.append(round(color_red_sum_prey / nm_prey, 2))

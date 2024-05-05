@@ -1,6 +1,9 @@
 import math
 import numpy as np
 from functools import lru_cache
+import random
+import string
+import pyscreenshot as ImageGrab
 
 
 @lru_cache(maxsize=1024)
@@ -36,9 +39,10 @@ def calculate_sector(inscribed_angle: float, angle_of_vision: float, line_of_att
     angle_per_sector = angle_of_vision / line_of_attacks
     angle_diff = angle_difference(inscribed_angle, entity_angle)
     sector = int((angle_diff // angle_per_sector) + 1)
-    # print("Inscribed angle: {}. Angle of vision: {}. Entity Angle: {}. Line of attacks: {}. Sector: {}".format(
-    #     inscribed_angle, angle_of_vision, entity_angle, line_of_attacks, sector
-    # ))
+    if line_of_attacks == 10 and sector > 10:
+        print("Inscribed angle: {}. Angle of vision: {}. Entity Angle: {}. Line of attacks: {}. Sector: {}".format(
+            inscribed_angle, angle_of_vision, entity_angle, line_of_attacks, sector
+        ))
     return sector
 
 
@@ -97,7 +101,7 @@ def check_collision(ent1, ent2):
     ent_distance = ent1_radius + ent2_radius
     distance = calculate_distance(pos1, pos2)
 
-    if distance <= ent_distance:
+    if distance < ent_distance:
         return True
     return False
 
@@ -115,3 +119,27 @@ def bytes_to_mb(bt):
 def get_normal_dist_random_number(mean, sigma):
     s = np.random.normal(0, 0.5, 1)
     return float(s[0])
+
+
+def random_string(length):
+    # Create a sequence of all uppercase and lowercase letters
+    letters = string.ascii_letters
+    # Randomly choose 'length' characters from the sequence
+    result_str = ''.join(random.choice(letters) for i in range(length))
+    return result_str
+
+
+def take_and_save_screenshot(percent: float, epoch, part=1, skip=True):
+    if skip:
+        return
+    im = ImageGrab.grab()
+    # Save the image file
+    percent = round(percent, 2)
+    if part == 1:
+        part = "p1"
+        e2 = epoch
+    else:
+        part = 'p2'
+        e2 = epoch - 1
+    name = "screenshots/{} {} {} {}.png".format(e2, part, percent, random_string(6))
+    im.save(name)

@@ -1,4 +1,4 @@
-import os
+# import os
 import torch
 from torch import nn
 import numpy as np
@@ -42,7 +42,7 @@ class PreyNN(nn.Module):
 class PredatorNN(nn.Module):
     def __init__(self):
         super(PredatorNN, self).__init__()
-        self.fc1 = nn.Linear(14, 8)  # First fully connected layer
+        self.fc1 = nn.Linear(19, 8)  # First fully connected layer
         # self.fc2 = nn.Linear(32, 16)  # Second fully connected layer
         self.angle = nn.Linear(8, 1)  # Output layer for angle
         self.magnitude = nn.Linear(8, 1)  # Output layer for magnitude

@@ -2,16 +2,19 @@
 import ui
 from entities import Prey, Predator
 import helper
-from sys import getsizeof
+import os #  import time
+import torch
+import time
+
 
 # EVOLUTION PARAMETERS
-GRID_SIZE: int = 300
+GRID_SIZE: int = 350
 TOTAL_ENTITIES: int = 1000
 
 PREY_LINE_OF_ACTIONS = 25
-PREDATOR_LINE_OF_ACTIONS = 10
+PREDATOR_LINE_OF_ACTIONS = 15
 
-SUPPORTED_PREYS = 500  # means there is food for only 2000 preys
+SUPPORTED_PREYS = 750  # means there is food for only 2000 preys
 
 # Calculation parameters
 TOTAL_PREYS: int = int(TOTAL_ENTITIES//1.5)
@@ -25,6 +28,12 @@ def main() -> None:
     world = ui.EvolutionUI(GRID_SIZE, TOTAL_TICKS)
     world_screen = world.create_screen()
 
+    ## some storage directories
+    paths_to_be_there = ['screenshots', 'weights']
+    for path in paths_to_be_there:
+        if not os.path.exists(path):
+            os.makedirs(path)
+
     preys = []
     predators = []
 
@@ -37,8 +46,20 @@ def main() -> None:
         predators.append(predator)
 
     world.add_entities(preys, predators)
-
+    percent_got_food = 0
+    percent_preys_died = 0
     for tick in range(1, TOTAL_TICKS+1):
+
+        if not world.is_running:
+            print("### STOPPING ###")
+            print("### Total Preys: {}".format(len(preys)))
+            print("### Total Predators: {}".format(len(predators)))
+            for i, prey in enumerate(preys):
+                torch.save(prey.brain.state_dict(), f'weights/prey_weights_{i+1}.pth')
+            for i, predator in enumerate(predators):
+                torch.save(predator.brain.state_dict(), f'weights/predator_weights_{i+1}.pth')
+            break
+
         print("############### Tick: {} ###############".format(tick))
 
         ## find all entities which are in visible distance of each other
@@ -134,33 +155,33 @@ def main() -> None:
                         # print(inscribed_angle, prey_predator_distance, sector)
 
 
-        # average_visibility_for_preys = sum([len(prey_predator_visibility[x]) for x in prey_predator_visibility]) / TOTAL_PREYS
-        # average_visibility_for_predators = sum([len(predator_prey_visibility[x]) for x in predator_prey_visibility]) / TOTAL_PREDATORS
-        #
-        # print("Average visibility for preys: {}".format(average_visibility_for_preys))
-        # print("Average visibility for predators: {}".format(average_visibility_for_predators))
-
         ## now we have all preys-predators that are in range of each other
         # for every prey predator call their brains to get the next move
         # lets start with preys
         prey_moves = {}
         for prey_i, prey in enumerate(preys):
             et_x, et_y = prey.position
+            visibility = prey.visibility
+
+            north = (et_y - visibility)/visibility if et_y - visibility <= 0 else 0
+            south = (et_y + visibility)/visibility if et_y + visibility >= GRID_SIZE else 0
+
+            east = (et_x - visibility)/visibility if et_x - visibility <= 0 else 0
+            west = (et_x + visibility)/visibility if et_x + visibility >= GRID_SIZE else 0
+
             prey_neighbours = prey_predator_visibility.get(prey_i, [])
             if len(prey_neighbours) > 0:
                 prey.set_opportunity()
-            prey_inputs_n = PREY_LINE_OF_ACTIONS + 4
+            prey_inputs_n = PREY_LINE_OF_ACTIONS # + 4
             # why the above thing?
             # the NN has 1 input for 1 line of action plus 4 inputs for distance from 4 edges
             prey_inputs = [0] * prey_inputs_n
             for neighbour in prey_neighbours:
-                prey_inputs[neighbour['sector']] = neighbour['distance_coefficient']
-            dx = et_x / GRID_SIZE
-            dy = et_y / GRID_SIZE
-            prey_inputs[-4] = dx
-            prey_inputs[-3] = dy
-            prey_inputs[-2] = 1 - dx
-            prey_inputs[-1] = 1 - dy
+                prey_inputs[neighbour['sector']-1] = neighbour['distance_coefficient']
+            prey_inputs.append(north)
+            prey_inputs.append(south)
+            prey_inputs.append(east)
+            prey_inputs.append(west)
 
             moves = prey.next_move(prey_inputs)
             prey_moves[prey_i] = moves
@@ -168,24 +189,28 @@ def main() -> None:
         predator_moves = {}
         for predator_i, predator in enumerate(predators):
             et_x, et_y = predator.position
-            predator_neighbours = prey_predator_visibility.get(predator_i, [])
+            visibility = predator.visibility
+
+            north = (et_y - visibility) / visibility if et_y - visibility <= 0 else 0
+            south = (et_y + visibility) / visibility if et_y + visibility >= GRID_SIZE else 0
+
+            east = (et_x - visibility) / visibility if et_x - visibility <= 0 else 0
+            west = (et_x + visibility) / visibility if et_x + visibility >= GRID_SIZE else 0
+            predator_neighbours = predator_prey_visibility.get(predator_i, [])
             if len(predator_neighbours) > 0:
                 predator.set_opportunity()
-            predator_inputs_n = PREDATOR_LINE_OF_ACTIONS + 4
+            predator_inputs_n = PREDATOR_LINE_OF_ACTIONS # + 4
             # why the above thing?
             # the NN has 1 input for 1 line of action plus 4 inputs for distance from 4 edges
             predator_inputs = [0] * predator_inputs_n
 
             for neighbour in predator_neighbours:
                 # print("Predator neighbour sector: {}".format(neighbour['sector']))
-                predator_inputs[neighbour['sector']] = neighbour['distance_coefficient']
-            dx = et_x / GRID_SIZE
-            dy = et_y / GRID_SIZE
-            predator_inputs[-4] = dx
-            predator_inputs[-3] = dy
-            predator_inputs[-2] = 1 - dx
-            predator_inputs[-1] = 1 - dy
-
+                predator_inputs[neighbour['sector']-1] = neighbour['distance_coefficient']
+            predator_inputs.append(north)
+            predator_inputs.append(south)
+            predator_inputs.append(east)
+            predator_inputs.append(west)
             moves = predator.next_move(predator_inputs)
             predator_moves[predator_i] = moves
 
@@ -201,28 +226,40 @@ def main() -> None:
             moves = predator_moves[predator_i]
             angle, distance = moves
             predator.move(angle, distance)
-        print("{} MB used by Preys".format(helper.bytes_to_mb(getsizeof(preys))))
-        print("{} MB used by Predators".format(helper.bytes_to_mb(getsizeof(predators))))
         world.add_entities(preys, predators)
+        if percent_got_food > 0.75 or percent_preys_died > 0.50:
+            helper.take_and_save_screenshot(percent_got_food, tick, part=2)
         # time.sleep(0.1)
 
         # check for collisions
         delete_preys = []
         predators_that_got_food = []
-        for prey_i, prey in enumerate(preys):
-            for predator_i, predator in enumerate(predators):
+        predators_getting_hit = {}
+        preys_that_need_negative = []
+        for predator_i, predator in enumerate(predators):
+            need_food = True
+            for prey_i, prey in enumerate(preys):
+            # for predator_i, predator in enumerate(predators):
                 collision = helper.check_collision(prey, predator)
                 if collision:
-                    delete_preys.append(prey_i)
-                    predators_that_got_food.append(predator_i)
-                    break
+                    if need_food and prey.get_kill_success(predator) and prey_i not in delete_preys:
+                        delete_preys.append(prey_i)
+                        predators_that_got_food.append(predator_i)
+                        need_food = False
+                    else:
+                        preys_that_need_negative.append(prey_i)
+                    predators_getting_hit[predator_i] = predators_getting_hit.get(predator_i, 0) + 1
+        delete_preys = list(set(delete_preys))
         delete_preys = sorted(delete_preys, reverse=True)
-        print("{} preys got eaten today".format(len(delete_preys)))
-        print("{} predators got food today".format(len(predators_that_got_food)))
+        print("{}/{} preys got eaten today".format(len(delete_preys), len(preys)))
+        percent_got_food = len(predators_that_got_food) / max(len(predators), 1)
+        percent_preys_died = len(delete_preys) / max(len(preys), 1)
+        if percent_got_food > 0.75 or percent_preys_died > 0.50:
+            helper.take_and_save_screenshot(percent_got_food, tick)
+        # print("{} predators got food today".format(len(predators_that_got_food)))
         for prey in delete_preys:
             # print(len(preys))
-            if prey < len(preys):
-                del preys[prey]
+            del preys[prey]
         # predators should eat and also give them feedback
         feedback_received = []
         for predator in predators_that_got_food:
@@ -230,10 +267,17 @@ def main() -> None:
             if predator not in feedback_received:
                 predators[predator].feedback()
                 feedback_received.append(predator)
+        ## predators that got hit
+        for predator in predators_getting_hit:
+            predators[predator].got_hit(predators_getting_hit[predator])
+        # negative feedback for preys that got in confrontation
         # preys should gaze and also feedback as they survived
-        for prey in preys:
+        for prey_i, prey in enumerate(preys):
             prey.gaze(n_preys, SUPPORTED_PREYS)
-            prey.feedback()
+            if prey_i in preys_that_need_negative:
+                prey.feedback(negative=True)
+            else:
+                prey.feedback()
 
         # give feedback to predators who had apportunity to eat but didnt
         for predator_i in range(len(predators)):
@@ -247,7 +291,7 @@ def main() -> None:
             if prey.check_if_about_to_die():
                 delete_preys.append(prey_i)
         delete_preys = sorted(delete_preys, reverse=True)
-        print("{} preys died today".format(len(delete_preys)))
+        print("{}/{} preys died today".format(len(delete_preys), len(preys)))
         for prey in delete_preys:
             del preys[prey]
 
@@ -256,7 +300,7 @@ def main() -> None:
             if predator.check_if_about_to_die():
                 delete_predators.append(predator_i)
         delete_predators = sorted(delete_predators, reverse=True)
-        print("{} predators died today".format(len(delete_predators)))
+        print("{}/{} predators died today".format(len(delete_predators), len(predators)))
         for predator in delete_predators:
             del predators[predator]
 
@@ -279,7 +323,9 @@ def main() -> None:
         print("{} predators born today".format(len(new_predators)))
         predators.extend(new_predators)
 
-        # time.sleep(0.5)
+        if len(preys) == 0 or len(preys) == 0:
+            time.sleep(0.5)
+
 
 main()
 

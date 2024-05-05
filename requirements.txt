@@ -3,3 +3,4 @@ pandas
 pygame
 torch
 matplotlib
+pyscreenshot
